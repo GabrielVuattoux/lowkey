@@ -63,12 +63,16 @@ Build via the Gradle Tasks panel, then start the server from the Spring Boot Das
 
 ```bash
 ./gradlew bootRun                      # start server at http://localhost:8080
+./gradlew bootRun --args='--spring.profiles.active=dev'   # same, with demo events around Zurich
 ./gradlew build --continuous -xtest    # watch mode (rebuilds on file change, skips tests)
 ```
 
 For watch mode, run `./gradlew build --continuous -xtest` in one terminal and `./gradlew bootRun` in a second.
 
-**H2 console (dev only):** `http://localhost:8080/h2-console`
+The `dev` profile seeds public events around Zurich, plus a private, a cancelled and a Bern
+event that the mobile app must not show there (see `config/DevDataSeeder.java`).
+
+**H2 console (dev only, from this machine only):** `http://localhost:8080/h2-console`
 - JDBC URL: `jdbc:h2:mem:testdb`
 - Username: `sa` / Password: *(leave blank)*
 
