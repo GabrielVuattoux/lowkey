@@ -7,8 +7,8 @@ friends should not require handing your contacts, location and conversations to
 a platform. It is inspired by privacy-first messengers such as Threema.
 
 > Status: early stage. The code is currently the Spontaneo web app (map of
-> spontaneous events, per-event chat and board), which is being reworked into a
-> privacy-first mobile app.
+> spontaneous events, per-event chat and board). It is being reworked into a
+> privacy-first mobile app for iOS and Android, with the web client kept alongside.
 
 ## Principles
 
@@ -24,9 +24,14 @@ a platform. It is inspired by privacy-first messengers such as Threema.
 |---|---|
 | [`apps/client`](apps/client) | Web client (Next.js / TypeScript) |
 | [`apps/server`](apps/server) | Backend (Spring Boot / Java 17) |
-| [`docs/`](docs) | Screenshots and project history |
+| [`docs/`](docs) | Architecture, roadmap, screenshots |
 
 See each app's README for setup instructions.
+
+## Design
+
+- [Architecture](docs/architecture.md): threat model, identity, encryption, location, what the server stores.
+- [Roadmap](docs/roadmap.md): phases and their branches.
 
 ## License and origin
 
