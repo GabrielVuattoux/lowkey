@@ -1,0 +1,19 @@
+Lowkey
+Copyright 2026 Gabriel Vuattoux
+
+This product is derived from "Spontaneo", developed by SoPra FS26 Group 21
+at the University of Zurich (Software Engineering Lab, spring semester 2026):
+
+  - https://github.com/claudioo2/sopra-fs26-group-21-client
+  - https://github.com/claudioo2/sopra-fs26-group-21-server
+
+Original authors (Group 21), by GitHub handle:
+  @claudioo2, @GabrielVuattoux, @fra-a11y, @Pascal-Trautmann, @semirIbra
+
+The original project was itself based on the official SoPra FS26 templates
+from the HASEL group at UZH (Copyright 2020 University of Zurich),
+licensed under the Apache License 2.0.
+
+Modifications: the client and server were merged into a single repository
+(apps/client, apps/server) and are being reworked into a privacy-first
+application. See the git history of this repository for all changes.
