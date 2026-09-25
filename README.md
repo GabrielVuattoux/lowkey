@@ -22,6 +22,7 @@ a platform. It is inspired by privacy-first messengers such as Threema.
 
 | Path | What |
 |---|---|
+| [`apps/mobile`](apps/mobile) | Mobile app for iOS and Android (Expo / React Native) |
 | [`apps/client`](apps/client) | Web client (Next.js / TypeScript) |
 | [`apps/server`](apps/server) | Backend (Spring Boot / Java 17) |
 | [`docs/`](docs) | Architecture, roadmap, screenshots |
