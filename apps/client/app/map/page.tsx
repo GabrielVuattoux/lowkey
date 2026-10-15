@@ -1213,7 +1213,7 @@ export default function MapPage() {
     try {
       const updated = await apiService.post<EventDTO>(
         `/events/${selectedEvent.id}/participants`,
-        { userId: Number(userId) },
+        {},
         { Authorization: `Bearer ${token}` }
       );
       setSelectedEvent({ ...updated, isParticipant: true });
@@ -1530,7 +1530,7 @@ export default function MapPage() {
     setJoiningEvent(true);
     try {
       const response = await apiService.post<EventDTO>("/events/participants",
-        { inviteCode: values.inviteCode, userId: Number(userId) },
+        { inviteCode: values.inviteCode },
         { Authorization: `Bearer ${token}` }
       );
       messageApi.success("You joined the event!");
