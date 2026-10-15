@@ -109,6 +109,9 @@ public interface DTOMapper {
 		return dto;
 	}
 
+    @Mapping(target = "participantCount", expression = "java(event.getParticipants() != null ? event.getParticipants().size() : 0)")
+    PublicEventGetDTO convertEntityToPublicEventGetDTO(Event event);
+
 
     @Mapping(source = "title", target = "title")
     @Mapping(source = "description", target = "description")

@@ -17,3 +17,7 @@ licensed under the Apache License 2.0.
 Modifications: the client and server were merged into a single repository
 (apps/client, apps/server) and are being reworked into a privacy-first
 application. See the git history of this repository for all changes.
+
+The mobile app (apps/mobile) was generated from the Expo default template,
+Copyright (c) 2015-present 650 Industries, Inc. (aka Expo), MIT License
+(see apps/mobile/LICENSE-expo-template).
