@@ -1,8 +1,8 @@
 package ch.uzh.ifi.hase.soprafs26.rest.dto;
 
+// The joining user is always the authenticated one, never an id taken from the request
 public class EventJoinByCodePostDTO {
     private String inviteCode;
-    private Long userId;
 
     public String getInviteCode() {
         return inviteCode;
@@ -10,13 +10,5 @@ public class EventJoinByCodePostDTO {
 
     public void setInviteCode(String inviteCode) {
         this.inviteCode = inviteCode;
-    }
-
-    public Long getUserId() {
-        return userId;
-    }
-
-    public void setUserId(Long userId) {
-        this.userId = userId;
     }
 }

@@ -4,6 +4,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -31,6 +33,9 @@ public class UserService {
 
 	private final UserRepository userRepository;
 
+	// BCrypt is salted and deliberately slow: a leaked database does not reveal the passwords
+	private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+
 	public UserService(@Qualifier("userRepository") UserRepository userRepository) {
 		this.userRepository = userRepository;
 	}
@@ -45,9 +50,13 @@ public class UserService {
 	}
 
 	public User createUser(User newUser) {
+		if (newUser.getPassword() == null || newUser.getPassword().isBlank()) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A password is required");
+		}
 		newUser.setToken(UUID.randomUUID().toString());
 		newUser.setStatus(UserStatus.ONLINE);
 		checkIfUserExists(newUser);
+		newUser.setPassword(passwordEncoder.encode(newUser.getPassword()));
 		// saves the given entity but data is only persisted in the database once
 		// flush() is called
 		newUser = userRepository.save(newUser);
@@ -98,8 +107,8 @@ public class UserService {
 		if (userUpdates.getStatus() != null) {
 			user.setStatus(userUpdates.getStatus());
 		}
-		if (userUpdates.getPassword() != null) {
-			user.setPassword(userUpdates.getPassword());
+		if (userUpdates.getPassword() != null && !userUpdates.getPassword().isBlank()) {
+			user.setPassword(passwordEncoder.encode(userUpdates.getPassword()));
 		}
 
 		userRepository.save(user);
@@ -210,7 +219,8 @@ public class UserService {
 
 		String baseErrorMessage = "The provided username or password is wrong!";
 
-		if (userByUsername == null || !userByUsername.getPassword().equals(userToBeCreated.getPassword())) {
+		if (userByUsername == null || userToBeCreated.getPassword() == null
+				|| !passwordEncoder.matches(userToBeCreated.getPassword(), userByUsername.getPassword())) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, String.format(baseErrorMessage));
 		} 
 	}

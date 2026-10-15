@@ -194,4 +194,10 @@ public class Event implements Serializable {
         this.cancelledAt = cancelledAt;
     }
 
+    // Compares ids, so it works across detached and freshly loaded entities
+    public boolean hasParticipant(User user) {
+        return user != null && user.getId() != null && participants != null
+                && participants.stream().anyMatch(p -> user.getId().equals(p.getId()));
+    }
+
 }

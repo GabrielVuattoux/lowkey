@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.web.WebAppConfiguration;
 import org.springframework.web.server.ResponseStatusException;
@@ -55,9 +56,56 @@ public class UserServiceIntegrationTest {
 		assertEquals(testUser.getId(), createdUser.getId());
 		// assertEquals(testUser.getName(), createdUser.getName());
 		assertEquals(testUser.getUsername(), createdUser.getUsername());
-		assertEquals(testUser.getPassword(), createdUser.getPassword());
 		assertNotNull(createdUser.getToken());
 		assertEquals(UserStatus.ONLINE, createdUser.getStatus());
+	}
+
+	@Test
+	public void createUser_storesPasswordHashedNotInClear() {
+		User testUser = new User();
+		testUser.setUsername("hashedUser");
+		testUser.setEmail("hashed@example.com");
+		testUser.setPassword("testPassword");
+
+		userService.createUser(testUser);
+
+		String stored = userRepository.findByUsername("hashedUser").getPassword();
+		assertNotEquals("testPassword", stored);
+		assertTrue(new BCryptPasswordEncoder().matches("testPassword", stored));
+	}
+
+	@Test
+	public void createUser_withoutPassword_throwsException() {
+		User testUser = new User();
+		testUser.setUsername("noPassword");
+		testUser.setEmail("no.password@example.com");
+
+		assertThrows(ResponseStatusException.class, () -> userService.createUser(testUser));
+	}
+
+	@Test
+	public void updateUser_newPassword_isHashedAndUsableForLogin() {
+		User testUser = new User();
+		testUser.setUsername("changingUser");
+		testUser.setEmail("changing@example.com");
+		testUser.setPassword("oldPassword");
+		User created = userService.createUser(testUser);
+
+		User updates = new User();
+		updates.setPassword("newPassword");
+		userService.updateUser(created.getId(), updates);
+
+		assertNotEquals("newPassword", userRepository.findByUsername("changingUser").getPassword());
+
+		User oldLogin = new User();
+		oldLogin.setUsername("changingUser");
+		oldLogin.setPassword("oldPassword");
+		assertThrows(ResponseStatusException.class, () -> userService.loginUser(oldLogin));
+
+		User newLogin = new User();
+		newLogin.setUsername("changingUser");
+		newLogin.setPassword("newPassword");
+		assertEquals(created.getId(), userService.loginUser(newLogin).getId());
 	}
 
 	@Test
@@ -103,7 +151,6 @@ public class UserServiceIntegrationTest {
 		// then
 		assertEquals(testUser.getId(), loggedInUser.getId());
 		assertEquals(testUser.getUsername(), loggedInUser.getUsername());
-		assertEquals(testUser.getPassword(), loggedInUser.getPassword());
 		assertNotNull(loggedInUser.getToken());
 		assertEquals(UserStatus.ONLINE, loggedInUser.getStatus());
 	}

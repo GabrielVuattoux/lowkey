@@ -7,7 +7,6 @@ import ch.uzh.ifi.hase.soprafs26.entity.Event;
 import ch.uzh.ifi.hase.soprafs26.entity.User;
 import ch.uzh.ifi.hase.soprafs26.rest.dto.EventGetDTO;
 import ch.uzh.ifi.hase.soprafs26.rest.dto.EventJoinByCodePostDTO;
-import ch.uzh.ifi.hase.soprafs26.rest.dto.EventJoinByIdPostDTO;
 import ch.uzh.ifi.hase.soprafs26.rest.dto.EventPostDTO;
 import ch.uzh.ifi.hase.soprafs26.rest.dto.EventPutDTO;
 import ch.uzh.ifi.hase.soprafs26.rest.mapper.DTOMapper;
@@ -22,6 +21,7 @@ import jakarta.validation.Valid;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping("/events")
@@ -41,16 +41,17 @@ public class EventController {
     public EventGetDTO createEvent(@AuthenticatedUser User user, @Valid @RequestBody EventPostDTO eventPostDTO){
         Event eventData = DTOMapper.INSTANCE.convertEventPostDTOtoEntity(eventPostDTO);
         Event newEvent = eventService.createEvent(eventData, user);
-        return DTOMapper.INSTANCE.convertEntityToEventGetDTO(newEvent);
+        return DTOMapper.INSTANCE.convertEntityToEventGetDTOFor(newEvent, user);
     }
 
-    // Join event by eventId (meant for joins through event search)
+    // Join event by eventId (meant for joins through event search). Always joins as the
+    // authenticated user, never as a user id taken from the request.
     @PostMapping("/{eventId}/participants")
     @ResponseStatus(HttpStatus.CREATED)
     @ResponseBody
-    public EventGetDTO joinEventById(@AuthenticatedUser User user, @PathVariable Long eventId, @RequestBody EventJoinByIdPostDTO eventJoinByIdPostDTO) {
-        Event event = participantService.joinEventById(eventId, eventJoinByIdPostDTO.getUserId());
-        return DTOMapper.INSTANCE.convertEntityToEventGetDTO(event);
+    public EventGetDTO joinEventById(@AuthenticatedUser User user, @PathVariable Long eventId) {
+        Event event = participantService.joinEventById(eventId, user.getId());
+        return DTOMapper.INSTANCE.convertEntityToEventGetDTOFor(event, user);
     }
 
     // Join event by inviteCode (meant for joins through invitations)
@@ -58,15 +59,15 @@ public class EventController {
     @ResponseStatus(HttpStatus.CREATED)
     @ResponseBody
     public EventGetDTO joinEventBynviteCode(@AuthenticatedUser User user, @RequestBody EventJoinByCodePostDTO eventJoinByCodePostDTO) {
-        Event event = participantService.joinEventByInviteCode(eventJoinByCodePostDTO.getInviteCode(), eventJoinByCodePostDTO.getUserId());
-        return DTOMapper.INSTANCE.convertEntityToEventGetDTO(event);
+        Event event = participantService.joinEventByInviteCode(eventJoinByCodePostDTO.getInviteCode(), user.getId());
+        return DTOMapper.INSTANCE.convertEntityToEventGetDTOFor(event, user);
     }
 
     @GetMapping("/{id}")
     @ResponseStatus(HttpStatus.OK)
     public EventGetDTO getEventById(@AuthenticatedUser User user, @PathVariable Long id) {
-        Event event = eventService.getEventById(id);
-        return DTOMapper.INSTANCE.convertEntityToEventGetDTO(event);
+        Event event = getVisibleEvent(id, user);
+        return DTOMapper.INSTANCE.convertEntityToEventGetDTOFor(event, user);
     }
 
     @GetMapping
@@ -83,7 +84,7 @@ public class EventController {
         List<EventGetDTO> eventGetDTOs = new ArrayList<>();
 
         for (Event event : events) {
-            EventGetDTO dto = DTOMapper.INSTANCE.convertEntityToEventGetDTO(event);
+            EventGetDTO dto = DTOMapper.INSTANCE.convertEntityToEventGetDTOFor(event, user);
             boolean isParticipant = event.getParticipants() != null && user != null &&
                 event.getParticipants().stream()
                     .anyMatch(u -> u.getId().equals(user.getId()));
@@ -112,6 +113,9 @@ public class EventController {
     @DeleteMapping("/{eventId}/participants/{userId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void leaveEvent(@AuthenticatedUser User user, @PathVariable Long eventId, @PathVariable long userId) {
+        if (userId != user.getId()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only remove yourself from an event");
+        }
         participantService.removeParticipantFromEvent(userId, eventId);
     }
 
@@ -123,11 +127,22 @@ public class EventController {
             @AuthenticatedUser User user,
             @PathVariable Long eventId
     ) {
+        getVisibleEvent(eventId, user);
         List<User> participants = eventService.getEventParticipants(eventId);
 
         return participants.stream()
-                .map(DTOMapper.INSTANCE::convertEntityToUserGetDTO)
+                .map(participant -> DTOMapper.INSTANCE.convertEntityToUserGetDTOFor(participant, user))
                 .toList();
+    }
+
+    // A private event does not exist for non-participants: 404 rather than 403,
+    // so that its existence is not confirmed either
+    private Event getVisibleEvent(Long eventId, User user) {
+        Event event = eventService.getEventById(eventId);
+        if (Boolean.TRUE.equals(event.getIsPrivate()) && !event.hasParticipant(user)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Event not found");
+        }
+        return event;
     }
     
 
