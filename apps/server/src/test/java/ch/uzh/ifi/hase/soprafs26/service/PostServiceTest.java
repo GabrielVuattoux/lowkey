@@ -164,7 +164,7 @@ public class PostServiceTest {
         post.setContent("Hello");
 
         when(userRepository.findByToken("valid-token")).thenReturn(testUser);
-        when(eventRepository.existsById(1L)).thenReturn(true);
+        when(eventRepository.findById((Long) 1L)).thenReturn(Optional.of(testEvent));
         when(postRepository.findByEventIdOrderByTimestampAsc(1L)).thenReturn(List.of(post));
 
         // when
@@ -180,7 +180,7 @@ public class PostServiceTest {
     public void getPostsByEvent_emptyEvent_returnsEmptyList() {
         // given
         when(userRepository.findByToken("valid-token")).thenReturn(testUser);
-        when(eventRepository.existsById(1L)).thenReturn(true);
+        when(eventRepository.findById((Long) 1L)).thenReturn(Optional.of(testEvent));
         when(postRepository.findByEventIdOrderByTimestampAsc(1L)).thenReturn(new ArrayList<>());
 
         // when
@@ -207,12 +207,25 @@ public class PostServiceTest {
     public void getPostsByEvent_eventNotFound_throwsNotFound() {
         // given
         when(userRepository.findByToken("valid-token")).thenReturn(testUser);
-        when(eventRepository.existsById(99L)).thenReturn(false);
+        when(eventRepository.findById((Long) 99L)).thenReturn(Optional.empty());
 
         // when + then
         ResponseStatusException ex = assertThrows(
                 ResponseStatusException.class,
                 () -> postService.getPostsByEvent(99L, "valid-token"));
         assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+    }
+
+    @Test
+    public void getPostsByEvent_userNotParticipant_throwsForbidden() {
+        User outsider = new User();
+        outsider.setId(2L);
+        when(userRepository.findByToken("outsider-token")).thenReturn(outsider);
+        when(eventRepository.findById((Long) 1L)).thenReturn(Optional.of(testEvent));
+
+        ResponseStatusException ex = assertThrows(
+                ResponseStatusException.class,
+                () -> postService.getPostsByEvent(1L, "outsider-token"));
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
     }
 }

@@ -20,6 +20,9 @@ public interface EventRepository extends JpaRepository<Event, Long> {
 
 	List<Event> findByCancelledAtIsNotNullAndCancelledAtBefore(LocalDateTime cutoff);
 
+	// Participation check without loading the lazy participant list (used outside transactions)
+	boolean existsByIdAndParticipants_Id(Long eventId, Long userId);
+
 	// Public, not cancelled and not yet ended events inside a bounding box (one geohash cell)
 	@Query("SELECT e FROM Event e WHERE e.isPrivate = false AND e.cancelledAt IS NULL AND e.endTime > :now"
 			+ " AND e.latitude BETWEEN :minLat AND :maxLat AND e.longitude BETWEEN :minLng AND :maxLng")

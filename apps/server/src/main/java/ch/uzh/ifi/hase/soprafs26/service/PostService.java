@@ -68,11 +68,9 @@ public class PostService {
     }
 
     public List<Post> getPostsByEvent(Long eventId, String token) {
-        getUserByToken(token);
-        if (!eventRepository.existsById(eventId)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND,
-                    String.format("Event with id %d does not exist", eventId));
-        }
+        User user = getUserByToken(token);
+        // The board of an event is only readable by its participants
+        getEventIfParticipant(eventId, user);
         return postRepository.findByEventIdOrderByTimestampAsc(eventId);
     }
 
