@@ -868,6 +868,8 @@ export default function MapPage() {
 
         const client = new Client({
           webSocketFactory: () => new SockJS(sockJsUrl),
+          // The server only accepts chat connections with a valid token
+          connectHeaders: { Authorization: `Bearer ${token}` },
           reconnectDelay: 0,
           connectionTimeout: 5000,
           onConnect: () => {
@@ -1251,6 +1253,8 @@ export default function MapPage() {
 
     const client = new Client({
       webSocketFactory: () => new SockJS(sockJsUrl),
+      // The server only accepts chat connections with a valid token
+      connectHeaders: { Authorization: `Bearer ${token}` },
       reconnectDelay: 0,
       connectionTimeout: 5000,
         
