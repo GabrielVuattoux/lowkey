@@ -1,5 +1,9 @@
 # Lowkey
 
+[![Server](https://github.com/GabrielVuattoux/lowkey/actions/workflows/server.yml/badge.svg)](https://github.com/GabrielVuattoux/lowkey/actions/workflows/server.yml)
+[![Mobile](https://github.com/GabrielVuattoux/lowkey/actions/workflows/mobile.yml/badge.svg)](https://github.com/GabrielVuattoux/lowkey/actions/workflows/mobile.yml)
+[![Web client](https://github.com/GabrielVuattoux/lowkey/actions/workflows/client.yml/badge.svg)](https://github.com/GabrielVuattoux/lowkey/actions/workflows/client.yml)
+
 **Spontaneous events with your friends, without giving away your life.**
 
 Lowkey is a social app for young people built around one idea: meeting up with

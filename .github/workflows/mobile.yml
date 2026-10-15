@@ -1,0 +1,29 @@
+name: Mobile
+
+# Every push, on any branch: the result also shows up on the pull request of that branch
+on:
+  push:
+    paths: ["apps/mobile/**", ".github/workflows/mobile.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/mobile/package-lock.json
+      - run: npm ci
+      # Expo generates this file on `expo start`; it is git-ignored but the typecheck needs it
+      - run: echo '/// <reference types="expo/types" />' > expo-env.d.ts
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test -- --ci
