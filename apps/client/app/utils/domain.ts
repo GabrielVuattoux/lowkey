@@ -1,13 +1,8 @@
-import process from "process";
-import { isProduction } from "@/utils/environment";
 /**
- * Returns the API base URL based on the current environment.
- * In production it retrieves the URL from NEXT_PUBLIC_PROD_API_URL (or falls back to a hardcoded url).
- * In development, it returns "http://localhost:8080".
+ * Returns the API base URL.
+ * Set NEXT_PUBLIC_API_URL at build time for production (Next.js inlines it into the bundle).
+ * Without it, the client targets the local development server.
  */
 export function getApiDomain(): string {
-  const prodUrl = process.env.NEXT_PUBLIC_PROD_API_URL ||
-    "https://sopra-fs26-group-21-server.oa.r.appspot.com"; // TODO: update with your production URL as needed.
-  const devUrl = "http://localhost:8080";
-  return isProduction() ? prodUrl : devUrl;
+  return process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 }

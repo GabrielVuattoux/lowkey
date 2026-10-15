@@ -6,18 +6,17 @@ Spontaneo is a **location-based event discovery app** that allows users to open 
 
 The platform aims to bridge the gap between traditional social-network events — which usually assume users already know the host — and impersonal event-listing platforms. By centering everything around a live map, proximity-based discovery, and a lightweight social graph, Spontaneo makes discovering and joining spontaneous local activities feel more natural and social.
 
-This repository contains the **Spring Boot 4 / Java 17 backend** deployed on **Google Cloud App Engine Standard** with a **Cloud SQL Postgres** database. The Next.js frontend lives in [`sopra-fs26-group-21-client`](https://github.com/claudioo2/sopra-fs26-group-21-client).
+This folder contains the **Spring Boot 4 / Java 17 backend** of [Lowkey](../../README.md), packaged as a Docker image that runs on any PostgreSQL (see [docs/deployment.md](../../docs/deployment.md)). The mobile app lives in [`apps/mobile`](../mobile), the web client in [`apps/client`](../client).
 
 ---
 
 ## Technologies used
 
 - **Spring Boot 4** · **Java 17** · **Spring Data JPA** · **MapStruct** for DTO ↔ entity mapping
-- **Spring WebSocket** with **STOMP over SockJS** (App Engine Standard blocks raw WebSocket upgrades)
-- **PostgreSQL** via **Google Cloud SQL** (`db-f1-micro`) in production; **H2 in-memory** in dev / tests
-- **Gradle** (Wrapper, no system install needed) · **JUnit 5** · **Mockito** · **JaCoCo** · **SonarCloud**
-- **Google Cloud App Engine Standard** (Java 17 runtime, `F4` instance class, scale-to-zero)
-- **GitHub Actions** for CI/CD
+- **Spring WebSocket** with **STOMP over SockJS**
+- **PostgreSQL** in production; **H2 in-memory** in dev / tests
+- **Gradle** (Wrapper, no system install needed) · **JUnit 5** · **Mockito** · **JaCoCo**
+- **Docker** image for deployment · **GitHub Actions** for CI
 
 ---
 
@@ -31,9 +30,9 @@ This repository contains the **Spring Boot 4 / Java 17 backend** deployed on **G
 
 4. **WebSocket configuration** — [`config/WebsocketConfig.java`](./src/main/java/ch/uzh/ifi/hase/soprafs26/config/WebsocketConfig.java). Registers `/ws` with `.withSockJS()`, a simple in-memory broker on `/topic`, and the `/app` prefix for application routes. Two broadcasts exist today: `/topic/chat/{eventId}` (every saved message) and `/topic/events/{eventId}/cancelled` (one frame when the creator soft-deletes an event).
 
-5. **Infrastructure / persistence config** — [`Application.java`](./src/main/java/ch/uzh/ifi/hase/soprafs26/Application.java) (CORS, `@EnableScheduling`, root health-check), [`app.yaml`](./app.yaml) (App Engine runtime + Cloud SQL socket), and [`application-prod.properties`](./src/main/resources/application-prod.properties) (Postgres URL via the Cloud SQL socket factory, HikariCP capped at 5 connections per instance).
+5. **Infrastructure / persistence config** — [`Application.java`](./src/main/java/ch/uzh/ifi/hase/soprafs26/Application.java) (CORS, `@EnableScheduling`, root health-check), [`application-prod.properties`](./src/main/resources/application-prod.properties) (PostgreSQL from environment variables, small HikariCP pool) and [`config/`](./src/main/java/ch/uzh/ifi/hase/soprafs26/config/) (WebSocket setup and chat access control).
 
-The controllers depend on the services, which depend on Spring Data JPA repositories ([`repository/`](./src/main/java/ch/uzh/ifi/hase/soprafs26/repository/)) that talk to either H2 (dev) or Cloud SQL Postgres (prod) depending on the active Spring profile.
+The controllers depend on the services, which depend on Spring Data JPA repositories ([`repository/`](./src/main/java/ch/uzh/ifi/hase/soprafs26/repository/)) that talk to either H2 (dev) or PostgreSQL (prod) depending on the active Spring profile.
 
 ---
 
@@ -76,7 +75,7 @@ event that the mobile app must not show there (see `config/DevDataSeeder.java`).
 - JDBC URL: `jdbc:h2:mem:testdb`
 - Username: `sa` / Password: *(leave blank)*
 
-The dev database is in-memory and resets on every restart. Production uses Cloud SQL Postgres (see [Releases](#releases) below).
+The dev database is in-memory and resets on every restart. Production uses PostgreSQL (see [Deployment](#deployment) below).
 
 ### Build, test, coverage
 
@@ -84,11 +83,10 @@ The dev database is in-memory and resets on every restart. Production uses Cloud
 ./gradlew build                                  # compile, test, and package
 ./gradlew test                                   # run all tests
 ./gradlew test jacocoTestReport                  # tests + JaCoCo coverage report
-./gradlew sonar                                  # SonarCloud analysis
 ./gradlew test --tests "ch.uzh.ifi.hase.soprafs26.service.UserServiceTest"   # single test class
 ```
 
-The test suite (16 classes under [`src/test/`](./src/test/)) covers services, controllers, the JPA layer, and the MapStruct mapper. CI runs `./gradlew build` on every push to `main` and on every pull request via [`.github/workflows/pr.yml`](./.github/workflows/pr.yml).
+The test suite (under [`src/test/`](./src/test/)) covers services, controllers, the JPA layer, the MapStruct mapper and the chat access rules. CI runs `./gradlew build` on every push that touches `apps/server` ([`.github/workflows/server.yml`](../../.github/workflows/server.yml)).
 
 ### Debugging
 
@@ -101,22 +99,23 @@ The test suite (16 classes under [`src/test/`](./src/test/)) covers services, co
 
 ### External dependencies
 
-- **Local dev**: none — H2 runs in-process.
-- **Production**: a Google **Cloud SQL Postgres** instance (`sopra-fs26-group-21-server:europe-west6:sopra-fs26-db`) and a Google **App Engine Standard** app in the same project. The Cloud SQL password is injected at deploy time via the `DB_PASSWORD` env var.
+- **Local dev**: none, H2 runs in-process.
+- **Production**: a PostgreSQL database, configured through the `DB_URL`, `DB_USERNAME` and `DB_PASSWORD` environment variables.
 
 ### API testing
 
 Use [Postman](https://www.postman.com/) or any HTTP client against `http://localhost:8080`. All protected endpoints require an `Authorization: Bearer <token>` header obtained from `POST /users/login`. The full route table is documented in [`CLAUDE.md`](../CLAUDE.md) at the root of the repository.
 
-### Releases
+### Deployment
 
-Push to `main` → GitHub Actions runs [`.github/workflows/main.yml`](./.github/workflows/main.yml), which:
+The [`Dockerfile`](./Dockerfile) builds an image that runs the `prod` profile on PostgreSQL. [`compose.yaml`](./compose.yaml) runs that image locally next to a PostgreSQL container:
 
-1. Builds the JAR with `./gradlew build`.
-2. Substitutes the real Cloud SQL password into [`app.yaml`](./app.yaml) (the file in the repo carries a `REPLACE_ME_BEFORE_DEPLOY` placeholder).
-3. Deploys to App Engine Standard with `gcloud app deploy`.
+```bash
+docker compose up --build      # http://localhost:8080, with the demo events
+docker compose down -v         # stop and delete the local database
+```
 
-App Engine is configured to **scale to zero** (`min_instances: 0`, `max_instances: 1`, `F4`). The first request after idle pays a cold start of ~3–5 s; the client mitigates this by sending a warm-up `GET /users` while the user is typing on the login page. HikariCP is capped at 5 connections per instance to stay safely under Cloud SQL `db-f1-micro`'s 25-connection limit.
+Environment variables, the DigitalOcean setup and how to move to another host are described in [docs/deployment.md](../../docs/deployment.md).
 
 ---
 
@@ -242,7 +241,7 @@ Ratings are 1–5 stars, one per (user, event) — the DB enforces a `UNIQUE(rat
 The top features new contributors could pick up next:
 
 1. **Push-style event updates beyond cancellation.** The cancellation broadcast on `/topic/events/{eventId}/cancelled` proves the pattern works; the same channel could be reused for participant joins/leaves, photo posts, and rating submissions so the client no longer needs to poll on `moveend`.
-2. **Server-side persistence for ratings on `User`.** Today `averageRating` and `ratingCount` are recomputed on every `GET /users/{id}` by [`RatingService`](./src/main/java/ch/uzh/ifi/hase/soprafs26/service/RatingService.java). With Cloud SQL this is fine at our scale, but caching the aggregate on `User` (denormalised, updated on `POST /events/{id}/ratings`) would remove the per-request scan.
+2. **Server-side persistence for ratings on `User`.** Today `averageRating` and `ratingCount` are recomputed on every `GET /users/{id}` by [`RatingService`](./src/main/java/ch/uzh/ifi/hase/soprafs26/service/RatingService.java). This is fine at our scale, but caching the aggregate on `User` (denormalised, updated on `POST /events/{id}/ratings`) would remove the per-request scan.
 3. **Refresh tokens / token expiry.** Tokens are currently long-lived random UUIDs persisted on `User`. Adding an expiry field plus a refresh endpoint would close the obvious security gap without changing the client's auth model significantly.
 
 ---

@@ -6,7 +6,7 @@ Spontaneo is a **location-based event discovery app** that allows users to open 
 
 The platform aims to bridge the gap between traditional social-network events — which usually assume users already know the host — and impersonal event-listing platforms. By centering everything around a live map, proximity-based discovery, and a lightweight social graph, Spontaneo makes discovering and joining spontaneous local activities feel more natural and social.
 
-This repository contains the **Next.js / TypeScript frontend** deployed on **Vercel**. The Spring Boot backend lives in [`sopra-fs26-group-21-server`](https://github.com/claudioo2/sopra-fs26-group-21-server).
+This folder contains the **Next.js / TypeScript web client** of [Lowkey](../../README.md). The backend lives in [`apps/server`](../server), the mobile app in [`apps/mobile`](../mobile).
 
 ---
 
@@ -17,7 +17,7 @@ This repository contains the **Next.js / TypeScript frontend** deployed on **Ver
 - **Mapbox GL JS** for the map, with **`supercluster`** for marker clustering
 - **`@stomp/stompjs` + `sockjs-client`** for the WebSocket-backed event chat
 - **Deno / Nix** (via `flake.nix`) to pin the dev toolchain reproducibly
-- **Vercel** for deployment · **GitHub Actions** for CI
+- **GitHub Actions** for CI
 
 ---
 
@@ -27,9 +27,9 @@ This repository contains the **Next.js / TypeScript frontend** deployed on **Ver
 The map also hosts the create-event panel and event-detail modal, making it the primary interaction hub of the platform. User preferences such as category filters, friends-only events, my-events, and past-events are persisted in `sessionStorage` to provide a consistent and personalized experience. <br>
 This component is essential because it combines event discovery, interaction, and social context into one intuitive real-time interface.
 
-2. **[`app/api/apiService.ts`](./app/api/apiService.ts) — REST client.** Thin singleton around `fetch` that switches between `http://localhost:8080` (dev) and the App Engine URL (prod) via [`app/utils/domain.ts`](./app/utils/domain.ts). Used by every page through the [`useApi`](./app/hooks/useApi.tsx) hook. Auth tokens are passed as `Authorization: Bearer <token>` (read from `localStorage` via [`useLocalStorage`](./app/hooks/useLocalStorage.tsx)).
+2. **[`app/api/apiService.ts`](./app/api/apiService.ts) — REST client.** Thin singleton around `fetch` that targets `NEXT_PUBLIC_API_URL`, or `http://localhost:8080` by default, via [`app/utils/domain.ts`](./app/utils/domain.ts). Used by every page through the [`useApi`](./app/hooks/useApi.tsx) hook. Auth tokens are passed as `Authorization: Bearer <token>` (read from `localStorage` via [`useLocalStorage`](./app/hooks/useLocalStorage.tsx)).
 
-3. **STOMP-over-SockJS chat client** — instantiated inline in [`app/map/page.tsx`](./app/map/page.tsx) when a participant opens an event's chat panel. Subscribes to `/topic/chat/{eventId}` and publishes to `/app/chat/{eventId}`. SockJS (not raw WebSocket) is required because App Engine Standard's front-end proxy blocks WebSocket upgrades.
+3. **STOMP-over-SockJS chat client** — instantiated inline in [`app/map/page.tsx`](./app/map/page.tsx) when a participant opens an event's chat panel. Connects with the user's token, subscribes to `/topic/chat/{eventId}` (participants only) and publishes to `/app/chat/{eventId}`. SockJS falls back to HTTP polling where WebSockets are blocked.
 
 4. **[`app/users/[id]/page.tsx`](./app/users/[id]/page.tsx) — Profile.** Combines user info, the follow / unfollow toggle, the View Following / View Followers modals, the join-by-invite-code form, and the upcoming-events list (with a red "Cancelled" badge for soft-deleted events still in their 24 h chat grace period). On the owner's own profile it also edits `username`, `email`, `password`, and `bio`.
 
@@ -53,8 +53,8 @@ The Map talks to the REST client to fetch events, the REST client hits the backe
 ### Install
 
 ```bash
-git clone https://github.com/claudioo2/sopra-fs26-group-21-client
-cd sopra-fs26-group-21-client
+git clone https://github.com/GabrielVuattoux/lowkey
+cd lowkey/apps/client
 source setup.sh   # installs Nix, direnv, Node, and Deno reproducibly via flake.nix
 ```
 
@@ -62,14 +62,14 @@ If `setup.sh` fails, follow the [manual troubleshooting steps](#troubleshooting)
 
 ### Environment
 
-Create `.env.local` in the repository root:
+Create `.env.local` in `apps/client`:
 
 ```
 NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN=<your mapbox public token>
-NEXT_PUBLIC_PROD_API_URL=<production backend URL>   # only needed for production builds
+NEXT_PUBLIC_API_URL=<backend URL>   # optional, defaults to http://localhost:8080
 ```
 
-Without `NEXT_PUBLIC_PROD_API_URL`, [`app/utils/domain.ts`](./app/utils/domain.ts) always targets `http://localhost:8080`.
+Without `NEXT_PUBLIC_API_URL`, [`app/utils/domain.ts`](./app/utils/domain.ts) targets `http://localhost:8080`. Next.js inlines the value at build time, so set it before `npm run build`.
 
 ### Run
 
@@ -84,7 +84,7 @@ Every command is also available via Deno (`deno task dev`, etc.).
 
 ### External dependencies
 
-- The **Spring Boot backend** must be running on `http://localhost:8080` (see [`sopra-fs26-group-21-server`](https://github.com/claudioo2/sopra-fs26-group-21-server)).
+- The **Spring Boot backend** must be running on `http://localhost:8080` (see [`apps/server`](../server)).
 - A **Mapbox** account (free tier is enough) for the public access token.
 
 ### Tests
@@ -93,7 +93,7 @@ The client has **no automated test suite** at this time — testing is done by r
 
 ### Releases
 
-Push to `main` → GitHub Actions runs [`.github/workflows/verceldeployment.yml`](./.github/workflows/verceldeployment.yml), which deploys the build to Vercel. There is no separate tagging step; the `main` branch is the production line.
+The web client is not deployed yet. CI builds it on every push that touches `apps/client` ([`.github/workflows/client.yml`](../../.github/workflows/client.yml)). Deployment of the backend is described in [docs/deployment.md](../../docs/deployment.md).
 
 ---
 

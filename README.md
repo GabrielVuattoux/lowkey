@@ -37,6 +37,7 @@ See each app's README for setup instructions.
 
 - [Architecture](docs/architecture.md): threat model, identity, encryption, location, what the server stores.
 - [Roadmap](docs/roadmap.md): phases and their branches.
+- [Deployment](docs/deployment.md): Docker image, environment variables, hosting.
 
 ## License and origin
 

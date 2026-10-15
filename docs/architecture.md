@@ -225,6 +225,6 @@ of the mailbox relay.
 
 - **Minimum age** and app store rating (§4.9).
 - **When to move to MLS** (forward secrecy), and whether to support linked devices.
-- **Hosting:** today GCP `europe-west6` (Zurich). A Swiss provider would support the privacy positioning.
+- **Hosting:** DigitalOcean (EU region) first, with the Student Pack credits; a Swiss or EU provider later for the privacy positioning. The server is a plain Docker image on PostgreSQL ([deployment.md](deployment.md)), so switching hosts stays cheap.
 - **Business model:** no ads and no data resale. Options: a paid app like Threema, freemium, or grants and a non-profit.
 - **Name:** check "Lowkey" for trademark and store-name availability before launch.

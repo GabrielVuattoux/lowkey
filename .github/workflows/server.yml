@@ -23,3 +23,10 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
       # Compiles, runs every test and packages the jar
       - run: ./gradlew build
+
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # The Docker image is what gets deployed: it must keep building
+      - run: docker build apps/server
