@@ -4,6 +4,7 @@ import ch.uzh.ifi.hase.soprafs26.authentication.AuthenticatedUser;
 import ch.uzh.ifi.hase.soprafs26.service.RatingService;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import ch.uzh.ifi.hase.soprafs26.entity.User;
 import ch.uzh.ifi.hase.soprafs26.entity.Event;
@@ -43,14 +44,14 @@ public class UserController {
 	@GetMapping("/users")
 	@ResponseStatus(HttpStatus.OK)
 	@ResponseBody
-	public List<UserGetDTO> getAllUsers() {
+	public List<UserGetDTO> getAllUsers(@AuthenticatedUser User requester) {
 		// fetch all users in the internal representation
 		List<User> users = userService.getUsers();
 		List<UserGetDTO> userGetDTOs = new ArrayList<>();
 
 		// convert each user to the API representation
 		for (User user : users) {
-			userGetDTOs.add(DTOMapper.INSTANCE.convertEntityToUserGetDTO(user));
+			userGetDTOs.add(DTOMapper.INSTANCE.convertEntityToUserGetDTOFor(user, requester));
 		}
 		return userGetDTOs;
 	}
@@ -91,9 +92,9 @@ public class UserController {
     @GetMapping("/users/{id}")
     @ResponseStatus(HttpStatus.OK)
     @ResponseBody
-    public UserGetDTO getUserById(@PathVariable("id") Long id) {
+    public UserGetDTO getUserById(@AuthenticatedUser User requester, @PathVariable("id") Long id) {
         User user = userService.getUser(id);
-        UserGetDTO dto = DTOMapper.INSTANCE.convertEntityToUserGetDTO(user);
+        UserGetDTO dto = DTOMapper.INSTANCE.convertEntityToUserGetDTOFor(user, requester);
         dto.setAverageRating(ratingService.getAverageRating(user));
         dto.setRatingCount(ratingService.getRatingCount(user));
         return dto;
@@ -102,20 +103,28 @@ public class UserController {
 	@PutMapping("/users/{id}")
 	@ResponseStatus(HttpStatus.OK)
 	@ResponseBody
-	public UserGetDTO updateUser(@PathVariable("id") Long id, @RequestBody UserPutDTO userPutDTO) {
+	public UserGetDTO updateUser(@AuthenticatedUser User requester, @PathVariable("id") Long id,
+			@RequestBody UserPutDTO userPutDTO) {
+		if (!id.equals(requester.getId())) {
+			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only update your own account");
+		}
 		User userUpdates = DTOMapper.INSTANCE.convertUserPutDTOtoEntity(userPutDTO);
 		User updatedUser = userService.updateUser(id, userUpdates);
-		return DTOMapper.INSTANCE.convertEntityToUserGetDTO(updatedUser);
+		return DTOMapper.INSTANCE.convertEntityToUserGetDTOFor(updatedUser, requester);
 	}
 
 	@GetMapping("/users/{id}/events")
 	@ResponseStatus(HttpStatus.OK)
 	@ResponseBody
-	public List<EventGetDTO> getUserEvents(@PathVariable("id") Long id) {
+	public List<EventGetDTO> getUserEvents(@AuthenticatedUser User requester, @PathVariable("id") Long id) {
 		List<Event> events = eventService.getEventsByUserId(id);
 		List<EventGetDTO> dtos = new ArrayList<>();
 		for (Event e : events) {
-			dtos.add(DTOMapper.INSTANCE.convertEntityToEventGetDTO(e));
+			// Someone's private events are only visible to the other participants
+			if (Boolean.TRUE.equals(e.getIsPrivate()) && !e.hasParticipant(requester)) {
+				continue;
+			}
+			dtos.add(DTOMapper.INSTANCE.convertEntityToEventGetDTOFor(e, requester));
 		}
 		return dtos;
 	}
@@ -143,7 +152,7 @@ public class UserController {
 
 		User updatedUser = userService.followUser(follower.getId(),targetUserId);
 
-		return DTOMapper.INSTANCE.convertEntityToUserGetDTO(updatedUser);
+		return DTOMapper.INSTANCE.convertEntityToUserGetDTOFor(updatedUser, follower);
 	}
 
 	//unfollow
@@ -156,28 +165,28 @@ public class UserController {
 
 		User updatedUser = userService.unfollowUser(follower.getId(), targetUserId);
 
-		return DTOMapper.INSTANCE.convertEntityToUserGetDTO(updatedUser);
+		return DTOMapper.INSTANCE.convertEntityToUserGetDTOFor(updatedUser, follower);
 	}
 
 	@GetMapping("/users/{userId}/following")
 	@ResponseStatus(HttpStatus.OK)
 	@ResponseBody
-	public List<UserGetDTO> getFollowing(@PathVariable Long userId) {
+	public List<UserGetDTO> getFollowing(@AuthenticatedUser User requester, @PathVariable Long userId) {
 		Set<User> following = userService.getFollowingUsers(userId);
 
 		return following.stream()
-			.map(DTOMapper.INSTANCE::convertEntityToUserGetDTO)
+			.map(u -> DTOMapper.INSTANCE.convertEntityToUserGetDTOFor(u, requester))
 			.toList();
 	}
 
 	@GetMapping("/users/{userId}/followers")
 	@ResponseStatus(HttpStatus.OK)
 	@ResponseBody
-	public List<UserGetDTO> getFollowers(@PathVariable Long userId) {
+	public List<UserGetDTO> getFollowers(@AuthenticatedUser User requester, @PathVariable Long userId) {
 		List<User> followers = userService.getFollowers(userId);
 
 		return followers.stream()
-				.map(DTOMapper.INSTANCE::convertEntityToUserGetDTO)
+				.map(u -> DTOMapper.INSTANCE.convertEntityToUserGetDTOFor(u, requester))
 				.toList();
 	}
 

@@ -14,6 +14,7 @@ import ch.uzh.ifi.hase.soprafs26.rest.dto.UserPutDTO;
 import ch.uzh.ifi.hase.soprafs26.service.EventService;
 import ch.uzh.ifi.hase.soprafs26.service.UserService;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,6 +36,8 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -66,6 +69,17 @@ public class UserControllerTest {
     @MockitoBean
     private RatingService ratingService;
 
+	private User requester;
+
+	// Every request below is sent as user 1, unless a test stubs findByToken itself
+	@BeforeEach
+	public void setupAuthentication() {
+		requester = new User();
+		requester.setId(1L);
+		requester.setUsername("requester");
+		given(userRepository.findByToken(anyString())).willReturn(requester);
+	}
+
 	@Test
 	public void givenUsers_whenGetUsers_thenReturnJsonArray() throws Exception {
 		// given
@@ -80,7 +94,7 @@ public class UserControllerTest {
 		given(userService.getUsers()).willReturn(allUsers);
 
 		// when
-		MockHttpServletRequestBuilder getRequest = get("/users").contentType(MediaType.APPLICATION_JSON);
+		MockHttpServletRequestBuilder getRequest = get("/users").header("Authorization", "Bearer token").contentType(MediaType.APPLICATION_JSON);
 
 		// then
 		mockMvc.perform(getRequest).andExpect(status().isOk())
@@ -101,6 +115,7 @@ public class UserControllerTest {
 
 		// when/then -> do the request + validate the result
 		MockHttpServletRequestBuilder getRequest = get("/users/{id}", user.getId())
+				.header("Authorization", "Bearer token")
 				.contentType(MediaType.APPLICATION_JSON);
 
 		mockMvc.perform(getRequest)
@@ -190,6 +205,7 @@ public class UserControllerTest {
 
 		// when/then -> do the request + validate the result
 		MockHttpServletRequestBuilder postRequest = put("/users/{id}", user.getId())
+				.header("Authorization", "Bearer token")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(asJsonString(userPutDTO));
 
@@ -276,7 +292,7 @@ public class UserControllerTest {
 				.willThrow(new ResponseStatusException(HttpStatus.NOT_FOUND));
 
 		// when + then
-		mockMvc.perform(get("/users/99").contentType(MediaType.APPLICATION_JSON))
+		mockMvc.perform(get("/users/99").header("Authorization", "Bearer token").contentType(MediaType.APPLICATION_JSON))
 				.andExpect(status().isNotFound());
 	}
 
@@ -335,7 +351,7 @@ public class UserControllerTest {
 		given(eventService.getEventsByUserId(1L)).willReturn(List.of(event));
 
 		// when + then
-		mockMvc.perform(get("/users/1/events").contentType(MediaType.APPLICATION_JSON))
+		mockMvc.perform(get("/users/1/events").header("Authorization", "Bearer token").contentType(MediaType.APPLICATION_JSON))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$", hasSize(1)))
 				.andExpect(jsonPath("$[0].id", is(1)));
@@ -352,7 +368,7 @@ public class UserControllerTest {
 		given(userService.getFollowers(1L)).willReturn(List.of(follower));
 
 		// when + then
-		mockMvc.perform(get("/users/1/followers").contentType(MediaType.APPLICATION_JSON))
+		mockMvc.perform(get("/users/1/followers").header("Authorization", "Bearer token").contentType(MediaType.APPLICATION_JSON))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$", hasSize(1)))
 				.andExpect(jsonPath("$[0].id", is(2)))
@@ -370,7 +386,7 @@ public class UserControllerTest {
 		given(userService.getFollowingUsers(1L)).willReturn(new HashSet<>(Set.of(followed)));
 
 		// when + then
-		mockMvc.perform(get("/users/1/following").contentType(MediaType.APPLICATION_JSON))
+		mockMvc.perform(get("/users/1/following").header("Authorization", "Bearer token").contentType(MediaType.APPLICATION_JSON))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$", hasSize(1)))
 				.andExpect(jsonPath("$[0].id", is(3)))
@@ -397,6 +413,106 @@ public class UserControllerTest {
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.id", is(follower.getId().intValue())))
 				.andExpect(jsonPath("$.username", is(follower.getUsername())));
+	}
+
+	@Test
+	public void getUsers_withoutToken_returns401() throws Exception {
+		mockMvc.perform(get("/users").contentType(MediaType.APPLICATION_JSON))
+				.andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	public void getUser_otherUser_hidesEmail() throws Exception {
+		User other = new User();
+		other.setId(2L);
+		other.setUsername("other");
+		other.setEmail("other@example.com");
+		given(userService.getUser(2L)).willReturn(other);
+
+		mockMvc.perform(get("/users/2").header("Authorization", "Bearer token"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.username", is("other")))
+				.andExpect(jsonPath("$.email").doesNotExist());
+	}
+
+	@Test
+	public void getUser_self_includesEmail() throws Exception {
+		requester.setEmail("me@example.com");
+		given(userService.getUser(1L)).willReturn(requester);
+
+		mockMvc.perform(get("/users/1").header("Authorization", "Bearer token"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.email", is("me@example.com")));
+	}
+
+	@Test
+	public void updateUser_otherUser_returns403() throws Exception {
+		UserPutDTO userPutDTO = new UserPutDTO();
+		userPutDTO.setPassword("hijacked");
+
+		mockMvc.perform(put("/users/2")
+						.header("Authorization", "Bearer token")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(asJsonString(userPutDTO)))
+				.andExpect(status().isForbidden());
+
+		verify(userService, never()).updateUser(Mockito.anyLong(), Mockito.any());
+	}
+
+	@Test
+	public void updateUser_withoutToken_returns401() throws Exception {
+		mockMvc.perform(put("/users/1")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(asJsonString(new UserPutDTO())))
+				.andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	public void getUserEvents_hidesOthersPrivateEventsAndInviteCodes() throws Exception {
+		User owner = new User();
+		owner.setId(2L);
+
+		Event publicEvent = new Event();
+		publicEvent.setId(1L);
+		publicEvent.setIsPrivate(false);
+		publicEvent.setCreator(owner);
+		publicEvent.setParticipants(List.of(owner));
+		publicEvent.setInviteCode("PUBLIC01");
+
+		Event privateEvent = new Event();
+		privateEvent.setId(2L);
+		privateEvent.setIsPrivate(true);
+		privateEvent.setCreator(owner);
+		privateEvent.setParticipants(List.of(owner));
+		privateEvent.setInviteCode("SECRET01");
+
+		given(eventService.getEventsByUserId(2L)).willReturn(List.of(publicEvent, privateEvent));
+
+		mockMvc.perform(get("/users/2/events").header("Authorization", "Bearer token"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$", hasSize(1)))
+				.andExpect(jsonPath("$[0].id", is(1)))
+				.andExpect(jsonPath("$[0].inviteCode").doesNotExist());
+	}
+
+	@Test
+	public void getUserEvents_participant_seesPrivateEventAndInviteCode() throws Exception {
+		User owner = new User();
+		owner.setId(2L);
+
+		Event privateEvent = new Event();
+		privateEvent.setId(2L);
+		privateEvent.setIsPrivate(true);
+		privateEvent.setCreator(owner);
+		privateEvent.setParticipants(List.of(owner, requester));
+		privateEvent.setInviteCode("SECRET01");
+
+		given(eventService.getEventsByUserId(2L)).willReturn(List.of(privateEvent));
+
+		mockMvc.perform(get("/users/2/events").header("Authorization", "Bearer token"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$", hasSize(1)))
+				.andExpect(jsonPath("$[0].inviteCode", is("SECRET01")));
 	}
 
 	/**

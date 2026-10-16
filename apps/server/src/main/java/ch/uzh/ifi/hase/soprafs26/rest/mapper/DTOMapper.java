@@ -47,7 +47,8 @@ public interface DTOMapper {
 	@Mapping(source = "id", target = "id")
 	// @Mapping(source = "name", target = "name")
 	@Mapping(source = "username", target = "username")
-	@Mapping(source = "email", target = "email")
+	// Emails are private: see convertEntityToUserGetDTOFor
+	@Mapping(target = "email", ignore = true)
 	@Mapping(source = "status", target = "status")
     @Mapping(source = "bio", target = "bio")
     @Mapping(source = "allowPrivateMessages", target = "allowPrivateMessages")
@@ -58,6 +59,15 @@ public interface DTOMapper {
         expression = "java(user.getFollowing() != null ? user.getFollowing().stream().map(ch.uzh.ifi.hase.soprafs26.entity.User::getId).collect(java.util.stream.Collectors.toSet()) : new java.util.HashSet<>())"
     )
 	UserGetDTO convertEntityToUserGetDTO(User user);
+
+	// Users only ever see their own email
+	default UserGetDTO convertEntityToUserGetDTOFor(User user, User viewer) {
+		UserGetDTO dto = convertEntityToUserGetDTO(user);
+		if (viewer != null && user.getId() != null && user.getId().equals(viewer.getId())) {
+			dto.setEmail(user.getEmail());
+		}
+		return dto;
+	}
 
 	@Mapping(source = "id", target = "id")
 	@Mapping(source = "username", target = "username")
@@ -84,10 +94,20 @@ public interface DTOMapper {
     @Mapping(target = "participantCount", expression = "java(event.getParticipants() != null ? event.getParticipants().size() : 0)")
     @Mapping(target = "participantIds", expression = "java(event.getParticipants() != null ? event.getParticipants().stream().map(ch.uzh.ifi.hase.soprafs26.entity.User::getId).collect(java.util.stream.Collectors.toList()) : new java.util.ArrayList<>())")
     @Mapping(source = "pictureUrls", target = "pictureUrls")
-    @Mapping(source = "inviteCode", target = "inviteCode")
+    // An invite code lets anyone join, even a private event: see convertEntityToEventGetDTOFor
+    @Mapping(target = "inviteCode", ignore = true)
     @Mapping(source = "cancelledAt", target = "cancelledAt")
     @Mapping(target = "isParticipant", ignore = true)
 	EventGetDTO convertEntityToEventGetDTO(Event event);
+
+	// Only participants (the creator included) get the invite code
+	default EventGetDTO convertEntityToEventGetDTOFor(Event event, User viewer) {
+		EventGetDTO dto = convertEntityToEventGetDTO(event);
+		if (event.hasParticipant(viewer)) {
+			dto.setInviteCode(event.getInviteCode());
+		}
+		return dto;
+	}
 
     @Mapping(target = "participantCount", expression = "java(event.getParticipants() != null ? event.getParticipants().size() : 0)")
     PublicEventGetDTO convertEntityToPublicEventGetDTO(Event event);

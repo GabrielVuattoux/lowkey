@@ -41,6 +41,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -390,6 +392,88 @@ public class EventControllerTest {
 		// when + then
 		mockMvc.perform(request)
 			.andExpect(status().isForbidden());
+	}
+
+	@Test
+	public void joinEventById_bodyNamesAnotherUser_joinsAsAuthenticatedUser() throws Exception {
+		Event event = new Event();
+		event.setId(1L);
+		event.setTitle("Public Event");
+		event.setIsPrivate(false);
+		event.setParticipants(List.of());
+		given(participantService.joinEventById(1L, 1L)).willReturn(event);
+
+		// The authenticated user is 1: the userId in the body must be ignored
+		mockMvc.perform(post("/events/1/participants")
+						.contentType(MediaType.APPLICATION_JSON)
+						.header("Authorization", "Bearer test-token")
+						.content("{\"userId\": 2}"))
+				.andExpect(status().isCreated());
+
+		verify(participantService).joinEventById(1L, 1L);
+		verify(participantService, never()).joinEventById(1L, 2L);
+	}
+
+	@Test
+	public void leaveEvent_otherUser_returns403() throws Exception {
+		mockMvc.perform(delete("/events/1/participants/2")
+						.header("Authorization", "Bearer test-token"))
+				.andExpect(status().isForbidden());
+
+		verify(participantService, never()).removeParticipantFromEvent(Mockito.anyLong(), Mockito.anyLong());
+	}
+
+	@Test
+	public void getEventById_privateEventOfOthers_returns404() throws Exception {
+		User owner = new User();
+		owner.setId(2L);
+
+		Event event = new Event();
+		event.setId(1L);
+		event.setTitle("Private Event");
+		event.setIsPrivate(true);
+		event.setCreator(owner);
+		event.setParticipants(List.of(owner));
+		event.setInviteCode("SECRET01");
+		given(eventService.getEventById(1L)).willReturn(event);
+
+		mockMvc.perform(get("/events/1").header("Authorization", "Bearer test-token"))
+				.andExpect(status().isNotFound());
+	}
+
+	@Test
+	public void getEventById_publicEventOfOthers_hidesInviteCode() throws Exception {
+		User owner = new User();
+		owner.setId(2L);
+
+		Event event = new Event();
+		event.setId(1L);
+		event.setTitle("Public Event");
+		event.setIsPrivate(false);
+		event.setCreator(owner);
+		event.setParticipants(List.of(owner));
+		event.setInviteCode("PUBLIC01");
+		given(eventService.getEventById(1L)).willReturn(event);
+
+		mockMvc.perform(get("/events/1").header("Authorization", "Bearer test-token"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.title", is("Public Event")))
+				.andExpect(jsonPath("$.inviteCode").doesNotExist());
+	}
+
+	@Test
+	public void getEventParticipants_privateEventOfOthers_returns404() throws Exception {
+		User owner = new User();
+		owner.setId(2L);
+
+		Event event = new Event();
+		event.setId(1L);
+		event.setIsPrivate(true);
+		event.setParticipants(List.of(owner));
+		given(eventService.getEventById(1L)).willReturn(event);
+
+		mockMvc.perform(get("/events/1/participants").header("Authorization", "Bearer test-token"))
+				.andExpect(status().isNotFound());
 	}
 
 	/**

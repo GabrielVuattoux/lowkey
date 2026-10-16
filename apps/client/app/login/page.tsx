@@ -23,7 +23,8 @@ const Login: React.FC = () => {
   const slowTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => { router.prefetch("/map"); }, [router]);
-  useEffect(() => { apiService.get("/users").catch(() => {}); }, [apiService]);
+  // Wakes the server up (cold start) before the user submits
+  useEffect(() => { apiService.get("/ping").catch(() => {}); }, [apiService]);
 
   const mapBg = `https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/8.5417,47.3769,11/1280x800?access_token=${process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN}`;
 

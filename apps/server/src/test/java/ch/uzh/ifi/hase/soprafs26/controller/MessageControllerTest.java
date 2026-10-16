@@ -106,10 +106,23 @@ public class MessageControllerTest {
         MessageController controller = new MessageController(messageService);
 
         // when
-        MessageGetDTO result = controller.sendMessage(input);
+        MessageGetDTO result = controller.sendMessage(1L, input);
 
         // then
         assertEquals("Hello", result.getContent());
+        assertEquals(1L, input.getEventId());
+    }
+
+    @Test
+    void sendMessage_bodyNamesAnotherEvent_usesDestinationEvent() {
+        MessagePostDTO input = new MessagePostDTO();
+        input.setContent("Hello");
+        input.setEventId(99L);
+        given(messageService.saveMessage(input)).willReturn(new Message());
+
+        new MessageController(messageService).sendMessage(1L, input);
+
+        assertEquals(1L, input.getEventId());
     }
 
     

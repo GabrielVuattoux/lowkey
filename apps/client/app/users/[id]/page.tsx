@@ -108,7 +108,7 @@ const Profile: React.FC = () => {
         email: values.email,
         password: values.password || undefined,
         bio: values.bio,
-      });
+      }, { Authorization: `Bearer ${token}` });
       setUser(updated);
       form.resetFields(["password", "confirmPassword"]);
       setEditing(false);
@@ -226,7 +226,7 @@ const Profile: React.FC = () => {
     if (!inviteCode.trim()) return;
     setJoiningByCode(true);
     try {
-      await apiService.post(`/events/participants`, { inviteCode: inviteCode.trim(), userId: Number(userId) }, { Authorization: `Bearer ${token}` });
+      await apiService.post(`/events/participants`, { inviteCode: inviteCode.trim() }, { Authorization: `Bearer ${token}` });
       messageApi.success("You joined the event!");
       setInviteCode("");
       router.push("/map");
@@ -255,7 +255,7 @@ const Profile: React.FC = () => {
       try {
         const updated = await apiService.post<EventDTO>(
           `/events/${selectedEvent.id}/participants`,
-          { userId: Number(userId) },
+          {},
           { Authorization: `Bearer ${token}` }
         );
         

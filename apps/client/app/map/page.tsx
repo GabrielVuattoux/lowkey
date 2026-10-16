@@ -868,6 +868,8 @@ export default function MapPage() {
 
         const client = new Client({
           webSocketFactory: () => new SockJS(sockJsUrl),
+          // The server only accepts chat connections with a valid token
+          connectHeaders: { Authorization: `Bearer ${token}` },
           reconnectDelay: 0,
           connectionTimeout: 5000,
           onConnect: () => {
@@ -1213,7 +1215,7 @@ export default function MapPage() {
     try {
       const updated = await apiService.post<EventDTO>(
         `/events/${selectedEvent.id}/participants`,
-        { userId: Number(userId) },
+        {},
         { Authorization: `Bearer ${token}` }
       );
       setSelectedEvent({ ...updated, isParticipant: true });
@@ -1251,6 +1253,8 @@ export default function MapPage() {
 
     const client = new Client({
       webSocketFactory: () => new SockJS(sockJsUrl),
+      // The server only accepts chat connections with a valid token
+      connectHeaders: { Authorization: `Bearer ${token}` },
       reconnectDelay: 0,
       connectionTimeout: 5000,
         
@@ -1530,7 +1534,7 @@ export default function MapPage() {
     setJoiningEvent(true);
     try {
       const response = await apiService.post<EventDTO>("/events/participants",
-        { inviteCode: values.inviteCode, userId: Number(userId) },
+        { inviteCode: values.inviteCode },
         { Authorization: `Bearer ${token}` }
       );
       messageApi.success("You joined the event!");

@@ -7,6 +7,7 @@ import ch.uzh.ifi.hase.soprafs26.rest.dto.MessageGetDTO;
 import ch.uzh.ifi.hase.soprafs26.rest.dto.MessagePostDTO;
 import ch.uzh.ifi.hase.soprafs26.rest.mapper.DTOMapper;
 import ch.uzh.ifi.hase.soprafs26.service.MessageService;
+import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.SendTo;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -27,7 +28,10 @@ public class MessageController {
 
     @MessageMapping("/chat/{eventId}")
     @SendTo("/topic/chat/{eventId}")
-    public MessageGetDTO sendMessage(MessagePostDTO messagePostDTO){
+    public MessageGetDTO sendMessage(@DestinationVariable Long eventId, MessagePostDTO messagePostDTO){
+        // The message is broadcast to the event of the destination, so that is the event it
+        // must be checked and saved against, whatever the body says
+        messagePostDTO.setEventId(eventId);
         Message message = messageService.saveMessage((messagePostDTO));
         return DTOMapper.INSTANCE.convertEntityToMessageGetDTO(message);
     }
