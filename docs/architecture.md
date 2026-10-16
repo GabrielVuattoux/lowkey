@@ -132,7 +132,11 @@ There are two kinds of events.
   - precision 5 is about 4.9 × 4.9 km;
   - when zoomed out, precision 4 is about 39 × 19.5 km.
 - It then filters and sorts locally. The server learns roughly which area you browse, never your position.
-- 🟡 Always request a fixed 3×3 block of cells, to blur further.
+- ✅ Always request a fixed 3×3 block of cells, to blur further.
+- ✅ **Implemented (M1):** `GET /public/events?cells=…`, no account needed.
+  - The server accepts precision 4 or 5 only, and at most 9 cells.
+  - It returns public, non-cancelled, upcoming events, without creator, participants or invite code.
+  - The app sends the precision-5 block around the device position.
 
 ### 4.5 Maps and geocoding 🟡
 

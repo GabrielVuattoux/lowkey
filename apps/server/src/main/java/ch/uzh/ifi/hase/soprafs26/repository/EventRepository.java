@@ -19,4 +19,11 @@ public interface EventRepository extends JpaRepository<Event, Long> {
 	List<Event> findByParticipantId(@Param("userId") Long userId);
 
 	List<Event> findByCancelledAtIsNotNullAndCancelledAtBefore(LocalDateTime cutoff);
+
+	// Public, not cancelled and not yet ended events inside a bounding box (one geohash cell)
+	@Query("SELECT e FROM Event e WHERE e.isPrivate = false AND e.cancelledAt IS NULL AND e.endTime > :now"
+			+ " AND e.latitude BETWEEN :minLat AND :maxLat AND e.longitude BETWEEN :minLng AND :maxLng")
+	List<Event> findPublicUpcomingInBox(@Param("now") LocalDateTime now,
+			@Param("minLat") double minLat, @Param("maxLat") double maxLat,
+			@Param("minLng") double minLng, @Param("maxLng") double maxLng);
 }

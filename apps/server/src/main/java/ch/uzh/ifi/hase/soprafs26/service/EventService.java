@@ -2,6 +2,7 @@ package ch.uzh.ifi.hase.soprafs26.service;
 import ch.uzh.ifi.hase.soprafs26.constant.EventCategory;
 import ch.uzh.ifi.hase.soprafs26.entity.Event;
 import ch.uzh.ifi.hase.soprafs26.entity.User;
+import ch.uzh.ifi.hase.soprafs26.geo.Geohash;
 import org.springframework.http.HttpStatus;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -11,7 +12,10 @@ import ch.uzh.ifi.hase.soprafs26.repository.EventRepository;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import jakarta.transaction.Transactional;
@@ -98,6 +102,40 @@ public class EventService {
             })
             .filter(event -> categories == null || categories.isEmpty() || categories.contains(event.getCategory()))
             .toList();
+    }
+
+    // Precision 4 cells are about 39 x 19.5 km, precision 5 cells about 4.9 x 4.9 km. Finer cells
+    // would let a client, or anyone reading the server logs, pinpoint where a user is.
+    static final int MIN_CELL_PRECISION = 4;
+    static final int MAX_CELL_PRECISION = 5;
+    // The mobile app asks for the 3x3 block of cells around the user
+    static final int MAX_CELLS = 9;
+
+    // Public events for users without an account: the client sends geohash cells, never coordinates
+    public List<Event> getPublicEventsInCells(List<String> cells) {
+        if (cells == null || cells.isEmpty() || cells.size() > MAX_CELLS) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Provide between 1 and " + MAX_CELLS + " geohash cells");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        // Events on a shared cell border match both cells: keep each event once
+        Map<Long, Event> events = new LinkedHashMap<>();
+        for (String cell : cells) {
+            String normalized = cell.trim().toLowerCase(Locale.ROOT);
+            if (normalized.length() < MIN_CELL_PRECISION || normalized.length() > MAX_CELL_PRECISION
+                    || !Geohash.isValid(normalized)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Geohash cells must be valid and have " + MIN_CELL_PRECISION + " to " + MAX_CELL_PRECISION + " characters");
+            }
+            Geohash.BoundingBox box = Geohash.decode(normalized);
+            for (Event event : eventRepository.findPublicUpcomingInBox(now,
+                    box.minLatitude(), box.maxLatitude(), box.minLongitude(), box.maxLongitude())) {
+                events.putIfAbsent(event.getId(), event);
+            }
+        }
+        return events.values().stream()
+                .sorted(Comparator.comparing(Event::getStartTime))
+                .toList();
     }
 
     public Event updateEvent(Long eventId, Event updatedEvent, User user) {
