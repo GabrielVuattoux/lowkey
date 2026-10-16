@@ -4,7 +4,6 @@ plugins {
     id 'java'
     id 'idea'
     id 'jacoco'
-    id "org.sonarqube" version "7.2.3.7755"
 }
 
 group = 'ch.uzh.ifi.hasel'
@@ -49,7 +48,6 @@ dependencies {
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
     runtimeOnly 'com.h2database:h2'
     runtimeOnly 'org.postgresql:postgresql'
-    runtimeOnly 'com.google.cloud.sql:postgres-socket-factory:1.20.0'
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'   
@@ -60,16 +58,6 @@ dependencies {
 bootJar {
     archiveFileName = "${archiveBaseName.get()}.${archiveExtension.get()}"
 }
-
-sonar {
-    properties {
-        property "sonar.projectKey", "claudioo2_sopra-fs26-group-21-server"
-        property "sonar.organization", "claudioo2"
-        property "sonar.host.url", "https://sonarcloud.io"
-        
-    }
-}
-// test
 
 jacocoTestReport {
     reports {

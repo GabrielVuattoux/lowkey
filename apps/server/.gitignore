@@ -40,7 +40,7 @@ hs_err_pid*
 # don't track the local.properties -> contains secrets
 local.properties
 
-# local env vars for prod profile testing (Cloud SQL password etc.)
+# local env vars for prod profile testing (database credentials etc.)
 .env.local
 .env.local.*
 
