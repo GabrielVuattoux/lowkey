@@ -1,0 +1,25 @@
+name: Server
+
+# Every push, on any branch: the result also shows up on the pull request of that branch
+on:
+  push:
+    paths: ["apps/server/**", ".github/workflows/server.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/server
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v6
+      # Compiles, runs every test and packages the jar
+      - run: ./gradlew build

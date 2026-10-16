@@ -1,0 +1,26 @@
+name: Web client
+
+# Every push, on any branch: the result also shows up on the pull request of that branch
+on:
+  push:
+    paths: ["apps/client/**", ".github/workflows/client.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/client
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/client/package-lock.json
+      - run: npm ci
+      # Type-checks and builds the Next.js app
+      - run: npm run build
